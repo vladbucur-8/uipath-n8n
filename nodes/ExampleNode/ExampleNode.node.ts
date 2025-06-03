@@ -49,18 +49,13 @@ export class ExampleNode implements INodeType {
 				type: 'options',
 				typeOptions: {
                     loadOptionsMethod: 'getEntities',
+                    loadOptionsDependsOn: ['folder'],
                 },
                 default: '',
                 description: 'The process you want to execute',
                 displayOptions: {
-                    show: {
-                        folder: [
-                            {
-                                _cnd: {
-                                    not: '',
-                                },
-                            },
-                        ],
+                    hide: {
+                        folder: [''],
                     },
                 },
 			},
