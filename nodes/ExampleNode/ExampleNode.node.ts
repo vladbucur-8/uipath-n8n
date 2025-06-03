@@ -7,6 +7,12 @@ import type {
 } from 'n8n-workflow';
 import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
 
+interface UiPathCredentials {
+	organization: string;
+	tenant: string;
+	patToken: string;
+}
+
 export class ExampleNode implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Execute UiPath',
@@ -21,9 +27,22 @@ export class ExampleNode implements INodeType {
 		outputs: [NodeConnectionType.Main],
 		icon: 'file:UiPath-Logo.svg',
 		usableAsTool: true,
+		credentials: [
+			{
+				name: 'uipathApi',
+				required: true,
+			}],
 		properties: [
-			// Node properties which the user gets displayed and
-			// can change on the node.
+			{
+				displayName: 'Folder',
+				name: 'folder',
+				type: 'options',
+				typeOptions: {
+                    loadOptionsMethod: 'getFolders',
+                },
+                default: '',
+                description: 'The folder context of the process'
+			},
 			{
 				displayName: 'Process',
 				name: 'process',
@@ -32,7 +51,7 @@ export class ExampleNode implements INodeType {
                     loadOptionsMethod: 'getEntities',
                 },
                 default: '',
-                description: 'Select an entity dynamically'
+                description: 'The process you want to execute'
 			},
 		],
 	};
@@ -81,22 +100,32 @@ export class ExampleNode implements INodeType {
 
 	methods = {
         loadOptions: {
-            async getEntities(this: ILoadOptionsFunctions) {
+			async getEntities(this: ILoadOptionsFunctions) {
+				return [];
+            },
+            async getFolders(this: ILoadOptionsFunctions) {
 				try {
+					const credentials = await this.getCredentials('uipathApi') as UiPathCredentials;
+
+					const baseUrl = `https://alpha.uipath.com/${credentials.organization}/${credentials.tenant}/orchestrator_/odata/Folders/UiPath.Server.Configuration.OData.GetFoldersPage(skip=0,take=100,expandedParentIds=[])`;
+
 					const response = await this.helpers.request({
 						method: 'GET',
-						url: 'https://dummyjson.com/c/c999-4e06-40c7-8da6?folderid=x',
+						url: baseUrl,
 						json: true,
+						headers: {
+							Authorization: `Bearer ${credentials.patToken}`,
+						}
 					});
 
 					console.log(response);
 
-                    if (!response || !response.data) {
+                    if (!response || !response.value) {
                         throw new Error('Unexpected API response format');
                     }
 
-                    return response.data.map((entity: any) => ({
-                        name: entity.Name,
+                    return response.value.map((entity: any) => ({
+                        name: entity.FullyQualifiedName,
                         value: entity.Key,
                     }));
 
