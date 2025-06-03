@@ -3,32 +3,36 @@ import type {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	ILoadOptionsFunctions,
 } from 'n8n-workflow';
 import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
 
 export class ExampleNode implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Example Node',
-		name: 'exampleNode',
+		displayName: 'Execute UiPath',
+		name: 'uiPath',
 		group: ['transform'],
 		version: 1,
-		description: 'Basic Example Node',
+		description: 'Executes a UiPath process and waits for output',
 		defaults: {
-			name: 'Example Node',
+			name: 'Execute UiPath Process',
 		},
 		inputs: [NodeConnectionType.Main],
 		outputs: [NodeConnectionType.Main],
+		icon: 'file:UiPath-Logo.svg',
 		usableAsTool: true,
 		properties: [
 			// Node properties which the user gets displayed and
 			// can change on the node.
 			{
-				displayName: 'My String',
-				name: 'myString',
-				type: 'string',
-				default: '',
-				placeholder: 'Placeholder value',
-				description: 'The description text',
+				displayName: 'Process',
+				name: 'process',
+				type: 'options',
+				typeOptions: {
+                    loadOptionsMethod: 'getEntities',
+                },
+                default: '',
+                description: 'Select an entity dynamically'
 			},
 		],
 	};
@@ -74,4 +78,33 @@ export class ExampleNode implements INodeType {
 
 		return [items];
 	}
+
+	methods = {
+        loadOptions: {
+            async getEntities(this: ILoadOptionsFunctions) {
+				try {
+					const response = await this.helpers.request({
+						method: 'GET',
+						url: 'https://dummyjson.com/c/c999-4e06-40c7-8da6?folderid=x',
+						json: true,
+					});
+
+					console.log(response);
+
+                    if (!response || !response.data) {
+                        throw new Error('Unexpected API response format');
+                    }
+
+                    return response.data.map((entity: any) => ({
+                        name: entity.Name,
+                        value: entity.Key,
+                    }));
+
+				} catch (error) {
+                    console.error('Error fetching entities:', error.message);
+                    throw new Error('Failed to fetch entities');
+                }
+            },
+        },
+    };
 }
