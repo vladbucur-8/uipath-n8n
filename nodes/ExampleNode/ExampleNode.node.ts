@@ -5,7 +5,7 @@ import type {
 	INodeTypeDescription,
 	ILoadOptionsFunctions,
 } from 'n8n-workflow';
-import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
+import { NodeConnectionType, NodeOperationError, NodeApiError } from 'n8n-workflow';
 
 interface UiPathCredentials {
 	organization: string;
@@ -51,7 +51,18 @@ export class ExampleNode implements INodeType {
                     loadOptionsMethod: 'getEntities',
                 },
                 default: '',
-                description: 'The process you want to execute'
+                description: 'The process you want to execute',
+                displayOptions: {
+                    show: {
+                        folder: [
+                            {
+                                _cnd: {
+                                    not: '',
+                                },
+                            },
+                        ],
+                    },
+                },
 			},
 		],
 	};
@@ -101,17 +112,46 @@ export class ExampleNode implements INodeType {
 	methods = {
         loadOptions: {
 			async getEntities(this: ILoadOptionsFunctions) {
-				return [];
-            },
+				try {
+					const credentials = await this.getCredentials('uipathApi') as UiPathCredentials;
+					const folderId = this.getNodeParameter('folder') as string;
+					
+					console.log(folderId);
+
+					const baseUrl = `https://alpha.uipath.com/${credentials.organization}/${credentials.tenant}/orchestrator_`;
+
+					const response = await this.helpers.request({
+						method: 'GET',
+						url: `${baseUrl}/odata/Releases?$filter=OrganizationUnitId eq ${folderId}`,
+						json: true,
+						headers: {
+							Authorization: `Bearer ${credentials.patToken}`,
+						}
+					});
+
+					if (!response || !response.value) {
+						throw new NodeApiError(this.getNode(), { message: 'Unexpected API response format' });
+					}
+
+					return response.value.map((entity: any) => ({
+						name: entity.Name,
+						value: entity.Key,
+					}));
+
+				} catch (error) {
+					console.error('Error fetching entities:', error.message);
+					throw new NodeApiError(this.getNode(), { message: 'Failed to fetch entities' });
+				}
+			},
             async getFolders(this: ILoadOptionsFunctions) {
 				try {
 					const credentials = await this.getCredentials('uipathApi') as UiPathCredentials;
 
-					const baseUrl = `https://alpha.uipath.com/${credentials.organization}/${credentials.tenant}/orchestrator_/odata/Folders/UiPath.Server.Configuration.OData.GetFoldersPage(skip=0,take=100,expandedParentIds=[])`;
+					const baseUrl = `https://alpha.uipath.com/${credentials.organization}/${credentials.tenant}/orchestrator_`;
 
 					const response = await this.helpers.request({
 						method: 'GET',
-						url: baseUrl,
+						url: `${baseUrl}/odata/Folders/UiPath.Server.Configuration.OData.GetFoldersPage(skip=0,take=100,expandedParentIds=[])`,
 						json: true,
 						headers: {
 							Authorization: `Bearer ${credentials.patToken}`,
@@ -121,17 +161,17 @@ export class ExampleNode implements INodeType {
 					console.log(response);
 
                     if (!response || !response.value) {
-                        throw new Error('Unexpected API response format');
+                        throw new NodeApiError(this.getNode(), { message: 'Unexpected API response format' });
                     }
 
                     return response.value.map((entity: any) => ({
                         name: entity.FullyQualifiedName,
-                        value: entity.Key,
+                        value: entity.Id,
                     }));
 
 				} catch (error) {
                     console.error('Error fetching entities:', error.message);
-                    throw new Error('Failed to fetch entities');
+                    throw new NodeApiError(this.getNode(), { message: 'Failed to fetch entities' });
                 }
             },
         },
