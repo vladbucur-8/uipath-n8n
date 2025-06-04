@@ -5,7 +5,7 @@ import type {
 	INodeTypeDescription,
 	ILoadOptionsFunctions,
 } from 'n8n-workflow';
-import { NodeConnectionType, NodeOperationError, NodeApiError } from 'n8n-workflow';
+import { NodeConnectionType, NodeApiError } from 'n8n-workflow';
 import { UiPathService } from './UiPathService';
 
 interface UiPathCredentials {
@@ -39,26 +39,26 @@ export class UiPathExecute implements INodeType {
 				name: 'folder',
 				type: 'options',
 				typeOptions: {
-                    loadOptionsMethod: 'getFolders',
-                },
-                default: '',
-                description: 'The folder context of the process' // eslint-disable-line
+					loadOptionsMethod: 'getFolders',
+				},
+				default: '',
+				description: 'The folder context of the process' // eslint-disable-line
 			},
 			{
 				displayName: 'Process', // eslint-disable-line
 				name: 'process',
 				type: 'options',
 				typeOptions: {
-                    loadOptionsMethod: 'getProcesses',
-                    loadOptionsDependsOn: ['folder'],
-                },
-                default: '',
-                description: 'The process you want to execute', // eslint-disable-line
-                displayOptions: {
-                    hide: {
-                        folder: [''],
-                    },
-                },
+					loadOptionsMethod: 'getProcesses',
+					loadOptionsDependsOn: ['folder'],
+				},
+				default: '',
+				description: 'The process you want to execute', // eslint-disable-line
+				displayOptions: {
+					hide: {
+						folder: [''],
+					},
+				},
 			},
 		],
 	};
@@ -68,45 +68,26 @@ export class UiPathExecute implements INodeType {
 	// with whatever the user has entered.
 	// You can make async calls and use `await`.
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-		const items = this.getInputData();
 
-		let item: INodeExecutionData;
-		let myString: string;
+		const credentials = await this.getCredentials('uipathApi') as UiPathCredentials;
+		const folderId = this.getNodeParameter('folder', 0) as string;
+		const releaseKey = this.getNodeParameter('process', 0) as string;
+		const service = new UiPathService(credentials, this.helpers, this.getNode());
 
-		// Iterates over all input items and add the key "myString" with the
-		// value the parameter "myString" resolves to.
-		// (This could be a different value for each item in case it contains an expression)
-		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
-			try {
-				myString = this.getNodeParameter('myString', itemIndex, '') as string;
-				item = items[itemIndex];
-
-				item.json.myString = myString;
-			} catch (error) {
-				// This node should never fail but we want to showcase how
-				// to handle errors.
-				if (this.continueOnFail()) {
-					items.push({ json: this.getInputData(itemIndex)[0].json, error, pairedItem: itemIndex });
-				} else {
-					// Adding `itemIndex` allows other workflows to handle this error
-					if (error.context) {
-						// If the error thrown already contains the context property,
-						// only append the itemIndex
-						error.context.itemIndex = itemIndex;
-						throw error;
-					}
-					throw new NodeOperationError(this.getNode(), error, {
-						itemIndex,
-					});
-				}
+		const startJobRequestBody =
+		{
+			startInfo:
+			{
+				JobsCount: 1,
+				ReleaseKey: `${releaseKey}`
 			}
 		}
 
-		return [items];
+		return this.prepareOutputData([{ json: await service.startJobAndWaitForFinalState(folderId, startJobRequestBody) }]);
 	}
 
 	methods = {
-        loadOptions: {
+		loadOptions: {
 			async getProcesses(this: ILoadOptionsFunctions) {
 				try {
 					const credentials = await this.getCredentials('uipathApi') as UiPathCredentials;
@@ -118,7 +99,7 @@ export class UiPathExecute implements INodeType {
 					throw new NodeApiError(this.getNode(), { message: 'Failed to fetch processes' });
 				}
 			},
-            async getFolders(this: ILoadOptionsFunctions) {
+			async getFolders(this: ILoadOptionsFunctions) {
 				try {
 					const credentials = await this.getCredentials('uipathApi') as UiPathCredentials;
 					const service = new UiPathService(credentials, this.helpers, this.getNode());
@@ -128,6 +109,6 @@ export class UiPathExecute implements INodeType {
 					throw new NodeApiError(this.getNode(), { message: 'Failed to fetch folders' });
 				}
 			},
-        },
-    };
+		},
+	};
 }
