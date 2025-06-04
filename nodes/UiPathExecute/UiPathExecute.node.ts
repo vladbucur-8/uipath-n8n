@@ -60,6 +60,38 @@ export class UiPathExecute implements INodeType {
 					},
 				},
 			},
+			{
+				displayName: 'Entry Point Name', // eslint-disable-line
+				name: 'entryPoint',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getEntryPoints',
+					loadOptionsDependsOn: ['process'],
+				},
+				default: '',
+				description: 'The entry point of the process. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				displayOptions: {
+					hide: {
+						process: [''],
+					},
+				},
+			},
+			{
+				displayName: 'Input Arguments Name or ID',
+				name: 'inputArguments',
+				type: 'options',
+				default: '',
+				description: 'JSON object containing the input arguments for the entry point. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				typeOptions: {
+					loadOptionsMethod: 'getInputArguments',
+					loadOptionsDependsOn: ['entryPoint'],
+				},
+				displayOptions: {
+					hide: {
+						entryPoint: [''],
+					},
+				},
+			},
 		],
 	};
 
@@ -71,7 +103,11 @@ export class UiPathExecute implements INodeType {
 
 		const credentials = await this.getCredentials('uipathApi') as UiPathCredentials;
 		const folderId = this.getNodeParameter('folder', 0) as string;
-		const releaseKey = this.getNodeParameter('process', 0) as string;
+
+		const rawProcessInfo = this.getNodeParameter('process', 0) as string;
+		const processInfo = JSON.parse(rawProcessInfo);
+
+
 		const service = new UiPathService(credentials, this.helpers, this.getNode());
 
 		const startJobRequestBody =
@@ -79,7 +115,7 @@ export class UiPathExecute implements INodeType {
 			startInfo:
 			{
 				JobsCount: 1,
-				ReleaseKey: `${releaseKey}`
+				ReleaseKey: processInfo.key
 			}
 		}
 
@@ -109,6 +145,40 @@ export class UiPathExecute implements INodeType {
 					throw new NodeApiError(this.getNode(), { message: 'Failed to fetch folders' });
 				}
 			},
+			async getEntryPoints(this: ILoadOptionsFunctions) {
+				try {
+					const credentials = await this.getCredentials('uipathApi') as UiPathCredentials;
+					const rawProcessInfo = this.getNodeParameter('process', 0) as string;
+					const processInfo = JSON.parse(rawProcessInfo);
+					const folderId = this.getNodeParameter('folder') as string;
+					const service = new UiPathService(credentials, this.helpers, this.getNode());
+					
+					console.log("process key" + processInfo.key);
+					console.log(processInfo.processKey);
+					console.log(processInfo.version);
+
+					return await service.getEntryPoints(processInfo, folderId);
+				} catch (error) {
+					console.error('Error fetching entry points:', error.message);
+					throw new NodeApiError(this.getNode(), { message: 'Failed to fetch entry points' });
+				}
+			},
+			async getInputArguments(this: ILoadOptionsFunctions) {
+				try {
+					const rawEntryPointInfo = this.getNodeParameter('entryPoint', 0) as string;
+					const entryPointInfo = JSON.parse(rawEntryPointInfo);
+					console.log("muie333" + entryPointInfo);
+					// Return the input arguments schema as a single option
+					return [{
+						name: 'Input Arguments Schema',
+						value: entryPointInfo.inputArgs,
+						description: 'The input arguments schema for this entry point'
+					}];
+				} catch (error) {
+					console.error('Error fetching input arguments:', error.message);
+					throw new NodeApiError(this.getNode(), { message: 'Failed to fetch input arguments' });
+				}
+			}
 		},
 	};
 }

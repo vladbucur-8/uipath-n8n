@@ -43,7 +43,11 @@ export class UiPathService {
             const response = await this.makeRequest('GET', `/odata/Releases?$filter=OrganizationUnitId eq ${folderId}`);
             return response.value.map((entity: any) => ({
                 name: entity.Name,
-                value: entity.Key,
+                value: JSON.stringify({
+		            key: entity.Key,
+                    processKey: entity.ProcessKey,
+                    version: entity.ProcessVersion
+                })
             }));
         } catch (error) {
             console.error('Error fetching processes:', error.message);
@@ -55,8 +59,10 @@ export class UiPathService {
         try {
             const response = await this.makeRequest(
                 'GET',
-                '/odata/Folders/UiPath.Server.Configuration.OData.GetFoldersPage(skip=0,take=100,expandedParentIds=[])'
+                '/odata/Folders'
             );
+
+            console.log(response);
             return response.value.map((entity: any) => ({
                 name: entity.FullyQualifiedName,
                 value: entity.Id,
@@ -103,6 +109,30 @@ export class UiPathService {
         catch (error) {
             console.error('Error starting job:', error.message);
             throw new NodeApiError(this.node, { message: 'Failed to start Orchestrator job' });
+        }
+    }
+
+    async getEntryPoints(processInfo: { key: string, processKey: string, version: string }, folderId: string) {
+        try {
+            const requestHeaders: Record<string, string> = {
+                'X-UIPATH-OrganizationUnitId': `${folderId}`
+            };
+            const response = await this.makeRequest(
+                'GET',
+                `/odata/Processes/UiPath.Server.Configuration.OData.GetPackageEntryPointsV2(key='${processInfo.processKey}:${processInfo.version}')`,
+                requestHeaders
+            );
+            console.log(response);
+            return response.value.map((entity: any) => ({
+                name: entity.Path,
+                value: JSON.stringify({
+                    uniqueId: entity.UniqueId,
+                    inputArgs: entity.inputArguments
+                })
+            }));
+        } catch (error) {
+            console.error('Error fetching entry points:', error.message);
+            throw new NodeApiError(this.node, { message: 'Failed to fetch entry points' });
         }
     }
 }
