@@ -14,10 +14,10 @@ interface UiPathCredentials {
 	patToken: string;
 }
 
-export class ExampleNode implements INodeType {
+export class UiPathExecute implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Execute UiPath',
-		name: 'uiPath',
+		name: 'uiPathExecute',
 		group: ['transform'],
 		version: 1,
 		description: 'Executes a UiPath process and waits for output',
@@ -35,17 +35,17 @@ export class ExampleNode implements INodeType {
 			}],
 		properties: [
 			{
-				displayName: 'Folder',
+				displayName: 'Folder', // eslint-disable-line
 				name: 'folder',
 				type: 'options',
 				typeOptions: {
                     loadOptionsMethod: 'getFolders',
                 },
                 default: '',
-                description: 'The folder context of the process'
+                description: 'The folder context of the process' // eslint-disable-line
 			},
 			{
-				displayName: 'Process',
+				displayName: 'Process', // eslint-disable-line
 				name: 'process',
 				type: 'options',
 				typeOptions: {
@@ -53,7 +53,7 @@ export class ExampleNode implements INodeType {
                     loadOptionsDependsOn: ['folder'],
                 },
                 default: '',
-                description: 'The process you want to execute',
+                description: 'The process you want to execute', // eslint-disable-line
                 displayOptions: {
                     hide: {
                         folder: [''],
