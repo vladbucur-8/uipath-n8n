@@ -5,12 +5,19 @@ import type {
 	INodeTypeDescription,
 	ILoadOptionsFunctions,
 } from 'n8n-workflow';
-import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
+import { NodeConnectionType, NodeOperationError, NodeApiError } from 'n8n-workflow';
+import { UiPathService } from './UiPathService';
 
-export class ExampleNode implements INodeType {
+interface UiPathCredentials {
+	organization: string;
+	tenant: string;
+	patToken: string;
+}
+
+export class UiPathExecute implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Execute UiPath',
-		name: 'uiPath',
+		name: 'uiPathExecute',
 		group: ['transform'],
 		version: 1,
 		description: 'Executes a UiPath process and waits for output',
@@ -21,18 +28,37 @@ export class ExampleNode implements INodeType {
 		outputs: [NodeConnectionType.Main],
 		icon: 'file:UiPath-Logo.svg',
 		usableAsTool: true,
-		properties: [
-			// Node properties which the user gets displayed and
-			// can change on the node.
+		credentials: [
 			{
-				displayName: 'Process',
+				name: 'uipathApi',
+				required: true,
+			}],
+		properties: [
+			{
+				displayName: 'Folder', // eslint-disable-line
+				name: 'folder',
+				type: 'options',
+				typeOptions: {
+                    loadOptionsMethod: 'getFolders',
+                },
+                default: '',
+                description: 'The folder context of the process' // eslint-disable-line
+			},
+			{
+				displayName: 'Process', // eslint-disable-line
 				name: 'process',
 				type: 'options',
 				typeOptions: {
-                    loadOptionsMethod: 'getEntities',
+                    loadOptionsMethod: 'getProcesses',
+                    loadOptionsDependsOn: ['folder'],
                 },
                 default: '',
-                description: 'Select an entity dynamically'
+                description: 'The process you want to execute', // eslint-disable-line
+                displayOptions: {
+                    hide: {
+                        folder: [''],
+                    },
+                },
 			},
 		],
 	};
@@ -81,30 +107,27 @@ export class ExampleNode implements INodeType {
 
 	methods = {
         loadOptions: {
-            async getEntities(this: ILoadOptionsFunctions) {
+			async getProcesses(this: ILoadOptionsFunctions) {
 				try {
-					const response = await this.helpers.request({
-						method: 'GET',
-						url: 'https://dummyjson.com/c/c999-4e06-40c7-8da6?folderid=x',
-						json: true,
-					});
-
-					console.log(response);
-
-                    if (!response || !response.data) {
-                        throw new Error('Unexpected API response format');
-                    }
-
-                    return response.data.map((entity: any) => ({
-                        name: entity.Name,
-                        value: entity.Key,
-                    }));
-
+					const credentials = await this.getCredentials('uipathApi') as UiPathCredentials;
+					const folderId = this.getNodeParameter('folder') as string;
+					const service = new UiPathService(credentials, this.helpers, this.getNode());
+					return await service.getProcesses(folderId);
 				} catch (error) {
-                    console.error('Error fetching entities:', error.message);
-                    throw new Error('Failed to fetch entities');
-                }
-            },
+					console.error('Error fetching processes:', error.message);
+					throw new NodeApiError(this.getNode(), { message: 'Failed to fetch processes' });
+				}
+			},
+            async getFolders(this: ILoadOptionsFunctions) {
+				try {
+					const credentials = await this.getCredentials('uipathApi') as UiPathCredentials;
+					const service = new UiPathService(credentials, this.helpers, this.getNode());
+					return await service.getFolders();
+				} catch (error) {
+					console.error('Error fetching folders:', error.message);
+					throw new NodeApiError(this.getNode(), { message: 'Failed to fetch folders' });
+				}
+			},
         },
     };
 }

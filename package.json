@@ -36,7 +36,7 @@
       "dist/credentials/UiPathApi.credentials.js"
     ],
     "nodes": [
-      "dist/nodes/ExampleNode/ExampleNode.node.js"
+      "dist/nodes/UiPathExecute/UiPathExecute.node.js"
     ]
   },
   "devDependencies": {
