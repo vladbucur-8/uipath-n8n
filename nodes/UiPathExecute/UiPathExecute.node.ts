@@ -39,26 +39,26 @@ export class UiPathExecute implements INodeType {
 				name: 'folder',
 				type: 'options',
 				typeOptions: {
-                    loadOptionsMethod: 'getFolders',
-                },
-                default: '',
-                description: 'The folder context of the process' // eslint-disable-line
+					loadOptionsMethod: 'getFolders',
+				},
+				default: '',
+				description: 'The folder context of the process' // eslint-disable-line
 			},
 			{
 				displayName: 'Process', // eslint-disable-line
 				name: 'process',
 				type: 'options',
 				typeOptions: {
-                    loadOptionsMethod: 'getProcesses',
-                    loadOptionsDependsOn: ['folder'],
-                },
-                default: '',
-                description: 'The process you want to execute', // eslint-disable-line
-                displayOptions: {
-                    hide: {
-                        folder: [''],
-                    },
-                },
+					loadOptionsMethod: 'getProcesses',
+					loadOptionsDependsOn: ['folder'],
+				},
+				default: '',
+				description: 'The process you want to execute', // eslint-disable-line
+				displayOptions: {
+					hide: {
+						folder: [''],
+					},
+				},
 			},
 		],
 	};
@@ -74,20 +74,20 @@ export class UiPathExecute implements INodeType {
 		const releaseKey = this.getNodeParameter('process', 0) as string;
 		const service = new UiPathService(credentials, this.helpers, this.getNode());
 
-		const startJobRequestBody = 
+		const startJobRequestBody =
 		{
-			startInfo: 
+			startInfo:
 			{
 				JobsCount: 1,
 				ReleaseKey: `${releaseKey}`
 			}
 		}
 
-		return this.prepareOutputData([{json: await service.startJobAndWaitForFinalState(folderId, startJobRequestBody)}]);
+		return this.prepareOutputData([{ json: await service.startJobAndWaitForFinalState(folderId, startJobRequestBody) }]);
 	}
 
 	methods = {
-        loadOptions: {
+		loadOptions: {
 			async getProcesses(this: ILoadOptionsFunctions) {
 				try {
 					const credentials = await this.getCredentials('uipathApi') as UiPathCredentials;
@@ -99,7 +99,7 @@ export class UiPathExecute implements INodeType {
 					throw new NodeApiError(this.getNode(), { message: 'Failed to fetch processes' });
 				}
 			},
-            async getFolders(this: ILoadOptionsFunctions) {
+			async getFolders(this: ILoadOptionsFunctions) {
 				try {
 					const credentials = await this.getCredentials('uipathApi') as UiPathCredentials;
 					const service = new UiPathService(credentials, this.helpers, this.getNode());
@@ -109,6 +109,6 @@ export class UiPathExecute implements INodeType {
 					throw new NodeApiError(this.getNode(), { message: 'Failed to fetch folders' });
 				}
 			},
-        },
-    };
+		},
+	};
 }

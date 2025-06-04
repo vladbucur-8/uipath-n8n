@@ -28,7 +28,7 @@ export class UiPathService {
             url: `${this.baseUrl}${url}`,
             body: body,
             json: true,
-            headers: customRequestHeaders == null ? this.headers : { ...this.headers, ...customRequestHeaders}
+            headers: customRequestHeaders == null ? this.headers : { ...this.headers, ...customRequestHeaders }
         });
 
         if (!response) {
@@ -70,7 +70,7 @@ export class UiPathService {
     async startJobAndWaitForFinalState(folderId: string, body: object) {
 
         let maxRetries = 20;
-		let attempt = 0;
+        let attempt = 0;
         let requestHeaders: Record<string, string> = {
             'X-UIPATH-OrganizationUnitId': `${folderId}`
         }
@@ -85,26 +85,24 @@ export class UiPathService {
 
             const jobId = startJobResponse.value[0].Id;
 
-            while (attempt < maxRetries)
-			{
-				let getJobResponse = await this.makeRequest(
+            while (attempt < maxRetries) {
+                let getJobResponse = await this.makeRequest(
                     'GET',
                     `/odata/Jobs(${jobId})`,
                     requestHeaders
                 )
 
-                if(getJobResponse.State == 'Successful' || getJobResponse.State == 'Faulted')
-				{
-					return getJobResponse;
-				}
+                if (getJobResponse.State == 'Successful' || getJobResponse.State == 'Faulted') {
+                    return getJobResponse;
+                }
 
-				await new Promise(resolve => setTimeout(resolve, 5000));
-				++attempt;
-			}
+                await new Promise(resolve => setTimeout(resolve, 5000));
+                ++attempt;
+            }
         }
-        catch(error) {
+        catch (error) {
             console.error('Error starting job:', error.message);
-            throw new NodeApiError(this.node, {message: 'Failed to start Orchestrator job'});
+            throw new NodeApiError(this.node, { message: 'Failed to start Orchestrator job' });
         }
     }
 }
