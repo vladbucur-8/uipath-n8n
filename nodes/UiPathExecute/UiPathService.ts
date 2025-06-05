@@ -43,7 +43,11 @@ export class UiPathService {
             const response = await this.makeRequest('GET', `/odata/Releases?$filter=OrganizationUnitId eq ${folderId}`);
             return response.value.map((entity: any) => ({
                 name: entity.Name,
-                value: entity.Key,
+                value: JSON.stringify({
+		            key: entity.Key,
+                    processKey: entity.ProcessKey,
+                    version: entity.ProcessVersion
+                })
             }));
         } catch (error) {
             console.error('Error fetching processes:', error.message);
@@ -55,8 +59,9 @@ export class UiPathService {
         try {
             const response = await this.makeRequest(
                 'GET',
-                '/odata/Folders/UiPath.Server.Configuration.OData.GetFoldersPage(skip=0,take=100,expandedParentIds=[])'
+                '/odata/Folders'
             );
+
             return response.value.map((entity: any) => ({
                 name: entity.FullyQualifiedName,
                 value: entity.Id,
@@ -103,6 +108,51 @@ export class UiPathService {
         catch (error) {
             console.error('Error starting job:', error.message);
             throw new NodeApiError(this.node, { message: 'Failed to start Orchestrator job' });
+        }
+    }
+
+    async getEntryPoints(processInfo: { key: string, processKey: string, version: string }, folderId: string) {
+        try {
+            const requestHeaders: Record<string, string> = {
+                'X-UIPATH-OrganizationUnitId': `${folderId}`
+            };
+            const response = await this.makeRequest(
+                'GET',
+                `/odata/Processes/UiPath.Server.Configuration.OData.GetPackageEntryPointsV2(key='${processInfo.processKey}:${processInfo.version}')`,
+                requestHeaders
+            );
+
+            return response.value.map((entity: any) => ({
+                name: entity.Path,
+                value: entity.UniqueId,
+            }));
+        } catch (error) {
+            console.error('Error fetching entry points:', error.message);
+            throw new NodeApiError(this.node, { message: 'Failed to fetch entry points' });
+        }
+    }
+
+    async getEntryPointInputArguments(processInfo: { key: string, processKey: string, version: string }, folderId: string, entryPointUniqueId: string) {
+        try {
+            const requestHeaders: Record<string, string> = {
+                'X-UIPATH-OrganizationUnitId': `${folderId}`
+            };
+            const response = await this.makeRequest(
+                'GET',
+                `/odata/Processes/UiPath.Server.Configuration.OData.GetPackageEntryPointsV2(key='${processInfo.processKey}:${processInfo.version}')`,
+                requestHeaders
+            );
+
+            const entryPoint = response.value.find((entity: any) => entity.UniqueId === entryPointUniqueId);
+
+            if (!entryPoint) {
+                throw new NodeApiError(this.node, { message: 'Entry point not found' });
+            }
+
+            return entryPoint.InputArguments || '{}';
+        } catch (error) {
+            console.error('Error fetching entry point input arguments:', error.message);
+            throw new NodeApiError(this.node, { message: 'Failed to fetch entry point input arguments' });
         }
     }
 }
