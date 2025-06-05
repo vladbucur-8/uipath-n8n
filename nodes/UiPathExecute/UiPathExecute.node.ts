@@ -14,6 +14,30 @@ interface UiPathCredentials {
 	patToken: string;
 }
 
+interface JSONSchema {
+	type: string;
+	properties: {
+		[key: string]: {
+			type: string;
+			title?: string;
+			default?: any;
+		};
+	};
+	required?: string[];
+}
+
+function getDefaultsFromSchema(schema: JSONSchema): string {
+	const result: Record<string, any> = {};
+
+	for (const [key, prop] of Object.entries(schema.properties)) {
+		if ('default' in prop) {
+			result[key] = prop.default;
+		}
+	}
+
+	return JSON.stringify(result, null, 2);
+}
+
 export class UiPathExecute implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Execute UiPath',
@@ -73,21 +97,24 @@ export class UiPathExecute implements INodeType {
 				displayOptions: {
 					hide: {
 						process: [''],
+						folder: [''],
 					},
 				},
 			},
 			{
-				displayName: 'Input Arguments Name or ID',
+				displayName: 'Input arguments', // eslint-disable-line
 				name: 'inputArguments',
 				type: 'options',
 				default: '',
-				description: 'JSON object containing the input arguments for the entry point. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				description: 'Input arguments for the process. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 				typeOptions: {
 					loadOptionsMethod: 'getInputArguments',
 					loadOptionsDependsOn: ['entryPoint'],
 				},
 				displayOptions: {
 					hide: {
+						process: [''],
+						folder: [''],
 						entryPoint: [''],
 					},
 				},
@@ -100,22 +127,19 @@ export class UiPathExecute implements INodeType {
 	// with whatever the user has entered.
 	// You can make async calls and use `await`.
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-
 		const credentials = await this.getCredentials('uipathApi') as UiPathCredentials;
 		const folderId = this.getNodeParameter('folder', 0) as string;
-
+		const inputArguments = this.getNodeParameter('inputArguments', 0) as string;
 		const rawProcessInfo = this.getNodeParameter('process', 0) as string;
 		const processInfo = JSON.parse(rawProcessInfo);
 
-
 		const service = new UiPathService(credentials, this.helpers, this.getNode());
 
-		const startJobRequestBody =
-		{
-			startInfo:
-			{
+		const startJobRequestBody = {
+			startInfo: {
 				JobsCount: 1,
-				ReleaseKey: processInfo.key
+				ReleaseKey: processInfo.key,
+				InputArguments: inputArguments
 			}
 		}
 
@@ -152,10 +176,6 @@ export class UiPathExecute implements INodeType {
 					const processInfo = JSON.parse(rawProcessInfo);
 					const folderId = this.getNodeParameter('folder') as string;
 					const service = new UiPathService(credentials, this.helpers, this.getNode());
-					
-					console.log("process key" + processInfo.key);
-					console.log(processInfo.processKey);
-					console.log(processInfo.version);
 
 					return await service.getEntryPoints(processInfo, folderId);
 				} catch (error) {
@@ -165,15 +185,24 @@ export class UiPathExecute implements INodeType {
 			},
 			async getInputArguments(this: ILoadOptionsFunctions) {
 				try {
-					const rawEntryPointInfo = this.getNodeParameter('entryPoint', 0) as string;
-					const entryPointInfo = JSON.parse(rawEntryPointInfo);
-					console.log("muie333" + entryPointInfo);
-					// Return the input arguments schema as a single option
-					return [{
-						name: 'Input Arguments Schema',
-						value: entryPointInfo.inputArgs,
-						description: 'The input arguments schema for this entry point'
+					const credentials = await this.getCredentials('uipathApi') as UiPathCredentials;
+					const entryPointUniqueId = this.getNodeParameter('entryPoint', 0) as string;
+					const rawProcessInfo = this.getNodeParameter('process', 0) as string;
+					const processInfo = JSON.parse(rawProcessInfo);
+					const folderId = this.getNodeParameter('folder') as string;
+					const service = new UiPathService(credentials, this.helpers, this.getNode());
+
+					const inputArguments = await service.getEntryPointInputArguments(processInfo, folderId, entryPointUniqueId);
+					const schema = JSON.parse(inputArguments) as JSONSchema;
+					const defaults = getDefaultsFromSchema(schema);
+
+					const options = [{
+						name: 'Default Arguments',
+						value: defaults
 					}];
+
+					return options;
+					
 				} catch (error) {
 					console.error('Error fetching input arguments:', error.message);
 					throw new NodeApiError(this.getNode(), { message: 'Failed to fetch input arguments' });

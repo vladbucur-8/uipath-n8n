@@ -62,7 +62,6 @@ export class UiPathService {
                 '/odata/Folders'
             );
 
-            console.log(response);
             return response.value.map((entity: any) => ({
                 name: entity.FullyQualifiedName,
                 value: entity.Id,
@@ -122,17 +121,38 @@ export class UiPathService {
                 `/odata/Processes/UiPath.Server.Configuration.OData.GetPackageEntryPointsV2(key='${processInfo.processKey}:${processInfo.version}')`,
                 requestHeaders
             );
-            console.log(response);
+
             return response.value.map((entity: any) => ({
                 name: entity.Path,
-                value: JSON.stringify({
-                    uniqueId: entity.UniqueId,
-                    inputArgs: entity.inputArguments
-                })
+                value: entity.UniqueId,
             }));
         } catch (error) {
             console.error('Error fetching entry points:', error.message);
             throw new NodeApiError(this.node, { message: 'Failed to fetch entry points' });
+        }
+    }
+
+    async getEntryPointInputArguments(processInfo: { key: string, processKey: string, version: string }, folderId: string, entryPointUniqueId: string) {
+        try {
+            const requestHeaders: Record<string, string> = {
+                'X-UIPATH-OrganizationUnitId': `${folderId}`
+            };
+            const response = await this.makeRequest(
+                'GET',
+                `/odata/Processes/UiPath.Server.Configuration.OData.GetPackageEntryPointsV2(key='${processInfo.processKey}:${processInfo.version}')`,
+                requestHeaders
+            );
+
+            const entryPoint = response.value.find((entity: any) => entity.UniqueId === entryPointUniqueId);
+
+            if (!entryPoint) {
+                throw new NodeApiError(this.node, { message: 'Entry point not found' });
+            }
+
+            return entryPoint.InputArguments || '{}';
+        } catch (error) {
+            console.error('Error fetching entry point input arguments:', error.message);
+            throw new NodeApiError(this.node, { message: 'Failed to fetch entry point input arguments' });
         }
     }
 }
