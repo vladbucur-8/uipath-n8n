@@ -4,6 +4,7 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 	ILoadOptionsFunctions,
+	INodePropertyOptions,
 } from 'n8n-workflow';
 import { NodeConnectionType, NodeApiError } from 'n8n-workflow';
 import { UiPathService } from './UiPathService';
@@ -131,15 +132,22 @@ export class UiPathExecute implements INodeType {
 		const folderId = this.getNodeParameter('folder', 0) as string;
 		const inputArguments = this.getNodeParameter('inputArguments', 0) as string;
 		const rawProcessInfo = this.getNodeParameter('process', 0) as string;
+		const entryPointPath = this.getNodeParameter('entryPoint', 0) as string;
 		const processInfo = JSON.parse(rawProcessInfo);
 
 		const service = new UiPathService(credentials, this.helpers, this.getNode());
+
+		//We need to get the entryPoint here as well so we can get the path
+		const packageEntryPoints : INodePropertyOptions[] = await service.getEntryPoints(processInfo, folderId);
+		const selectedEntryPoint = packageEntryPoints.find(option => option.value === entryPointPath);
+		const selectedEntryPointPath = selectedEntryPoint!.name;
 
 		const startJobRequestBody = {
 			startInfo: {
 				JobsCount: 1,
 				ReleaseKey: processInfo.key,
-				InputArguments: inputArguments
+				InputArguments: inputArguments,
+				EntryPointPath: selectedEntryPointPath
 			}
 		}
 

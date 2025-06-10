@@ -97,13 +97,20 @@ export class UiPathService {
                     requestHeaders
                 )
 
-                if (getJobResponse.State == 'Successful' || getJobResponse.State == 'Faulted') {
-                    return getJobResponse;
+                if (getJobResponse.State == 'Successful') {
+                    return getJobResponse.OutputArguments;
+                }
+
+                if(getJobResponse.State == 'Faulted') {
+                    throw new NodeApiError(this.node, { message: 'Orchestrator job faulted' });
                 }
 
                 await new Promise(resolve => setTimeout(resolve, 5000));
                 ++attempt;
             }
+
+            // Job wasn't successful so throw an error to fail the node
+            throw new NodeApiError(this.node, { message: 'Orchestrator job failed to complete' });
         }
         catch (error) {
             console.error('Error starting job:', error.message);
