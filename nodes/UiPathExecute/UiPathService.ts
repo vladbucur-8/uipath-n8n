@@ -14,7 +14,7 @@ export class UiPathService {
     private node: INode;
 
     constructor(credentials: UiPathCredentials, helpers: ILoadOptionsFunctions['helpers'], node: INode) {
-        this.baseUrl = `https://alpha.uipath.com/${credentials.organization}/${credentials.tenant}/orchestrator_`;
+        this.baseUrl = `https://staging.uipath.com/${credentials.organization}/${credentials.tenant}/orchestrator_`;
         this.headers = {
             Authorization: `Bearer ${credentials.patToken}`,
         };
